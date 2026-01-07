@@ -11,6 +11,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -22,16 +23,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
-        val user = auth.currentUser
 
         // 1. Validar sesión
-        if (user == null) {
-            goToLogin()
-            return
+        val user = auth.currentUser
+        if (user != null) {
+            loadUserInfo(user.uid)
+            saveFcmToken(user.uid)
         }
 
-        // 2. Cargar datos del usuario desde la BD
-        loadUserInfo(user.uid)
 
         // 3. Botón de Cerrar Sesión
         binding.btnLogout.setOnClickListener {
@@ -41,8 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         // 4. Botón Panel Admin (Aún no hace nada, es placeholder)
         binding.btnAdminPanel.setOnClickListener {
-            Toast.makeText(this, "Próximamente: Enviar Notificaciones", Toast.LENGTH_SHORT).show()
-            // Aquí conectaremos la siguiente activity en el Paso 5
+            startActivity(Intent(this, AdminActivity::class.java))
         }
     }
 
@@ -72,7 +70,18 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
-
+    private fun saveFcmToken(uid: String) {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                // Guardamos el token dentro del nodo del usuario
+                FirebaseDatabase.getInstance().getReference("users")
+                    .child(uid)
+                    .child("fcmToken")
+                    .setValue(token)
+            }
+        }
+    }
     private fun goToLogin() {
         startActivity(Intent(this, LoginActivity::class.java))
         finish()
